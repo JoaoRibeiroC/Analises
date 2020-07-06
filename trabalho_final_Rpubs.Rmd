@@ -1,5 +1,6 @@
 ---
 title: 'Analise de dados internacionais da Covid-19: o Brasil e o mundo'
+Author: Bruno Costa Dezotti, João Pedro Ribeiro Campos
 output:
   html_document:
     df_print: paged
