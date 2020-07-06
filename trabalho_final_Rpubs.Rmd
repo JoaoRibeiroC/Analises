@@ -1,0 +1,141 @@
+---
+title: 'Analise de dados internacionais da Covid-19: o Brasil e o mundo'
+output:
+  html_document:
+    df_print: paged
+---
+INTRODUÇÃO 
+
+A humanidade se deparou, no final de 2019, com uma nova situação de saúde pública, a Covid-19. Inicialmente, o vírus apareceu na China, e de lá, se propagou para todo o planeta. Essa nova situação acabou por impor um "novo normal", aonde diversas nações tiveram que se adaptar para diminuir os impactos na sociedade, sobretudo, a manutenção da vida. 
+Dentre as medidas adotadas encontra-se o isolamento social, cujo objetivo é diminuir a circulação de pessoas e, consequentemente, a circulação do vírus. Mesmo assim, milhões de pessoas se contamiram e milhares não resistiram a infecção, atingindo uma taxa de letalidade global próxima de 5%. 
+Nesse cenário pandêmico, alguns países se destacaram na efetividade de suas políticas no combate a Covid-19, já outros, se destacaram pela sua inefetividade de suas políticas. Desta forma, o presente trabalho, por meio de uma analise comparativa, tem como objetivo ilustra a situação do Brasil frente a outros países, além de orienta a formulação de um script no software R para tal abordagem. 
+A seleção dos países se deu por fatores populacionais, sucesso e não sucesso no combate ao vírus e alguns escolhas aleátorios. 
+
+LEVANTAMENTO DE DADOS 
+
+A primeira coisa a se fazer é carregar os pacotes, depois fazer o download da planilha de dados e setá-la de seu computador. Selecione o "level = 1", destinado apenas para países, e por uma questão de facilidade, troque a variável "id" por "country". 
+Utilize o comando "options(scipen = 999)" para retirar os número de notação ciêntifica. Crie uma nova variável, no caso criamos "dcovid19_2", selecione as variáveis na planilha de seu interesse pelo "select", bem como os países pelo "filter", e se necessário, insira novas variáveis a partir dos dados da planilha, por meio do comando "dplyr::mutate".  
+
+```{r, echo=FALSE, include=TRUE, error=FALSE}
+library(tidyverse)
+library(COVID19)
+library(readr)
+library(dplyr)
+
+# url = https://drive.google.com/file/d/1cTcWRieNLJk09jTgNAlCdhE5ySRfOImc/view?usp=sharing
+setwd("C:/UseR/")
+
+dcovid19 = covid19(level = 1)
+
+names(dcovid19)[names(dcovid19) == "id"] = "country"
+
+options(scipen = 999)
+dcovid19_2 = dcovid19 %>% select(country, tests, date, confirmed, deaths, population) %>%
+  filter(country %in% c("BRA", "RUS", "IND", "USA", "IDN", "PAK", "URY", "NZL", "NLD", "JPN", "ITA")) %>%
+  dplyr::mutate(taxa_casos_mil = (confirmed/population)*1000) %>%
+  dplyr::mutate(taxa_mortes_mil = (deaths/population)*1000) %>%
+  dplyr::mutate(taxa_testes_mil = (tests/population)*1000)
+```
+
+Após, para uma melhor organização e posterior análise dos dados, vamos separar as três principais variáveis, casos para mil habitantes, mortes por mil habitentes e testes por mil habitantes. Segue o código: 
+
+```{r, echo=FALSE, include=TRUE, error=FALSE}
+casos_mil_taxa = dcovid19_2 %>% group_by(date, country) %>% 
+  dplyr::summarise(taxa_casos_mil = sum(taxa_casos_mil)) %>%
+  filter(taxa_casos_mil > 0) %>% spread(key = "country", value = "taxa_casos_mil")
+
+mortes_mil_taxa = dcovid19_2 %>% group_by(date, country) %>% 
+  dplyr::summarise(taxa_mortes_mil = sum(taxa_mortes_mil)) %>%
+  filter(taxa_mortes_mil > 0) %>% spread(key = "country", value = "taxa_mortes_mil")
+
+testes_mil_taxa = dcovid19_2 %>% group_by(date, country) %>% 
+  dplyr::summarise(taxa_testes_mil = sum(taxa_testes_mil)) %>%
+  filter(taxa_testes_mil > 0) %>% spread(key = "country", value = "taxa_testes_mil")
+```
+
+Por conseguinte, vamos gerar os três gráficos das variáveis acima, a partir dos países selecionados, sendo eles: Indonesia (IDN), India (IND), Italia (ITA), Japão (JPN), Holanda (NLD), Nova Zelândia (NZL), Paquistão (PAK), Russia (RUS), Uruguai (URY) e Estados Unidos (USA). Por meio da análise gráfica e números de 5 de julho de 2020, constatou-se, em relação aos casos a cada mil habitantes, uma superioridade dos USA, que apresentou um número de 8,84 pessoas contaminados para cada mil habitantes, em seguida, tem-se o Brasil, com 7,65 pessoas contaminadas para cada mil. Em contra ponto, observou-se quatro países com uma baixa taxa de contaminados para cada mil habitantes, Nova Zelândia, Uruguai, Indonesia e Japão, todos com menos de 0,5 casos. 
+
+Em números absolutos, Estados Unidos e Brasil, respectivamente, lideram em números de casos e mortes, entretanto, quando relativizado a proporção de 1000 habitantes, o mesmo não se verifica. Neste cenário, em 5 de julho de 2020, a Ítalia lidera com o maior número de mortes para mil habitantes, seguida dos EUA. O Brasil, com 0,30 mortes, aparece com a quarta maior taxa, atrás da Holanda, que apresenta 0,35 mortes, mas já não possui uma inclinação ascendente da curva. O Uruguai, país que faz fronteira com o Brasil, apresenta uma baixa taxa tanto de casos como de mortes, evidenciando sucesso nas suas políticas de combate. 
+
+Na variável, testes para cada 1000 habitantes, o Brasil ficou boa parte do tempo a frente apenas da Indonésia, situação que mudou a partir de 29 de junho, quando o país mais do que dobrou seus testes por habitentes, saindo de 2,31 para 7,05 testes. A Indonésia permanece como o país que menos realiza testes, com uma taxa de 1,97, em 5 de julho. Rússia, EUA e Itália, figuram-se entre os que mais realizaram teste, com respectivamente, 143,63, 106,70 e 93,68 testes por mil. 
+
+
+```{r, echo=FALSE, include=TRUE, error=FALSE}
+library(plotly)
+Casos = plot_ly(casos_mil_taxa, x = ~date, y = ~BRA, name = 'Brasil',mode = 'line', type = 'scatter') %>% 
+   add_trace(y = ~IDN, name = 'Indonesia', mode = 'line') %>% 
+   add_trace(y = ~IND, name = 'India', mode = 'line') %>% 
+   add_trace(y = ~ITA, name = 'Italia', mode = 'line') %>%
+  add_trace(y = ~JPN, name = 'Japao', mode = 'line') %>%
+  add_trace(y = ~NLD, name = 'Holanda', mode = 'line') %>%
+  add_trace(y = ~NZL, name = 'Nova Zelandia', mode = 'line') %>%
+  add_trace(y = ~PAK, name = 'Paquistao', mode = 'line') %>%
+  add_trace(y = ~RUS, name = 'Russia', mode = 'line') %>%
+  add_trace(y = ~URY, name = 'Uruguai', mode = 'line') %>%
+  add_trace(y = ~USA, name = 'USA', mode = 'line', color = I("black")) %>%
+  layout(title = 'Casos confirmados de Covid-19 para 1000 habitantes',
+         xaxis = list (title = NA),
+         yaxis = list (title = 'Casos'))
+Casos
+   
+Mortes = plot_ly(mortes_mil_taxa, x = ~date, y = ~BRA, name = 'Brasil',mode = 'line', type = 'scatter') %>% 
+  add_trace(y = ~IDN, name = 'Indonesia', mode = 'line') %>% 
+  add_trace(y = ~IND, name = 'India', mode = 'line') %>% 
+  add_trace(y = ~ITA, name = 'Italia', mode = 'line') %>%
+  add_trace(y = ~JPN, name = 'Japao', mode = 'line') %>%
+  add_trace(y = ~NLD, name = 'Holanda', mode = 'line') %>%
+  add_trace(y = ~NZL, name = 'Nova Zelandia', mode = 'line') %>%
+  add_trace(y = ~PAK, name = 'Paquistao', mode = 'line') %>%
+  add_trace(y = ~RUS, name = 'Russia', mode = 'line') %>%
+  add_trace(y = ~URY, name = 'Uruguai', mode = 'line') %>%
+  add_trace(y = ~USA, name = 'USA', mode = 'line', color = I("black")) %>%
+  layout(title = 'Mortes confirmadas de Covid-19 para 1000 habitantes',
+         xaxis = list (title = NA),
+         yaxis = list (title = 'Mortes'))  
+Mortes
+
+Testes = plot_ly(testes_mil_taxa, x = ~date, y = ~BRA, name = 'Brasil',mode = 'line', type = 'scatter') %>% 
+  add_trace(y = ~IDN, name = 'Indonesia', mode = 'line') %>% 
+  add_trace(y = ~IND, name = 'India', mode = 'line') %>% 
+  add_trace(y = ~ITA, name = 'Italia', mode = 'line') %>%
+  add_trace(y = ~JPN, name = 'Japao', mode = 'line') %>%
+  add_trace(y = ~NLD, name = 'Holanda', mode = 'line') %>%
+  add_trace(y = ~NZL, name = 'Nova Zelandia', mode = 'line') %>%
+  add_trace(y = ~PAK, name = 'Paquistao', mode = 'line') %>%
+  add_trace(y = ~RUS, name = 'Russia', mode = 'line') %>%
+  add_trace(y = ~URY, name = 'Uruguai', mode = 'line') %>%
+  add_trace(y = ~USA, name = 'USA', mode = 'line', color = I("black")) %>%
+  layout(title = 'Testes realizados de Covid-19 para 1000 habitantes',
+         xaxis = list (title = NA),
+         yaxis = list (title = 'Testes')) 
+Testes
+```
+
+Os demais gráficos a seguir, demonstram dados relacionados a quantidade de casos e mortes confirmadas, além de testes realizados durante a pandemia do novo coronavírus somente no Brasil. Sendo assim, o esquema foi elaborado utilizando como referência os números das variáveis citadas acima, para cada 1000 habitantes.
+
+Primeiramente, partindo de um ponto de vista geral, os casos confirmados de Covid-19 no Brasil, assim como as mortes ligados à doença, sofreram e, ainda sofrem, uma elevação em seus números com com o decorrer do tempo. A quantidade de testes apresenta um aumento drástico com o avanço da pandemia no Brasil mas, principalmente, na transição entre os meses de junho e julho. O aumento da curva é evidente e se relaciona diretamente a um aumento significativo de casos, entre o dia 30 de junho e 1 de julho, como também é perceptível no gráfico de casos confirmados. Consequentemente, a curva de mortes confirmadas denota o mesmo resultado. Dessa forma, os dados mostram que a curva de contágio e perdas decorrentes da nova doença ainda segue em uma crescente.
+
+```{r, echo=FALSE, include=TRUE, error=FALSE}
+Testes_BRA = plot_ly(testes_mil_taxa, x = ~date, y = ~BRA, name = 'Brasil',type = 'bar', color = I("dark green")) %>%
+  layout(title = 'Testes realizados de Covid-19 para 1000 habitantes - Brasil',
+         xaxis = list (title = NA),
+         yaxis = list (title = 'Testes'))
+Testes_BRA
+
+Casos_BRA = plot_ly(casos_mil_taxa, x = ~date, y = ~BRA, name = 'Brasil', type = 'bar', color = I("dark green")) %>% 
+  layout(title = 'Casos confirmados de Covid-19 para 1000 habitantes - Brasil',
+         xaxis = list (title = NA),
+         yaxis = list (title = 'Casos'))
+Casos_BRA
+
+Mortes_BRA = plot_ly(mortes_mil_taxa, x = ~date, y = ~BRA, name = 'Brasil',type = 'bar', color = I("dark green")) %>% 
+  layout(title = 'Mortes confirmadas de Covid-19 para 1000 habitantes - Brasil',
+         xaxis = list (title = NA),
+         yaxis = list (title = 'Mortes'))
+Mortes_BRA
+```
+CONCLUSÃO 
+
+Conclui-se, portanto, que o Brasil apresenta uma condição crítica referente à prevenção e o combate efetivo da Covid-19. Tendo como base os dados apresentados no decorrer da análise, países que tomaram medidas de forma antecipada atingiram um nível de desaceleração e estabilização das curvas de contágio e mortes pelo novo vírus; Enquanto que, o Brasil, passa por um aumento expressivo em ambas variáveis. 
+Ainda que países como a Itália apresentem uma quantidade maior de mortes para cada mil habitantes e já estabilizada, como dito no cenário de 5 de julho, o Brasil e os Estados Unidos não estão distantes desse número, ainda que possuam uma extensão territorial e populacional consideravelmente maior, além da não estabilização da pandemia. 
+Nesse sentido, fica evidente a assimetria  dos resultados obtidos em panoramas diferentes de tomada de decisão. Embora existam perspectivas econômicas, políticas e sociais distintas entre nações, a prioridade da crise mundial da saúde possui peso desigual no quadro atual.
